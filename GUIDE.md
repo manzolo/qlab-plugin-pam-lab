@@ -376,7 +376,7 @@ You need to add two lines. Find the line that contains `pam_unix.so` and add one
 
 ```
 auth    required    pam_faillock.so preauth silent deny=3 unlock_time=300
-auth    [success=2 default=ignore]  pam_unix.so nullok
+auth    [success=3 default=ignore]  pam_unix.so nullok
 auth    [default=die] pam_faillock.so authfail deny=3 unlock_time=300
 ```
 
@@ -388,7 +388,7 @@ auth    [default=die] pam_faillock.so authfail deny=3 unlock_time=300
 - `authfail` — this is the "record the failure" call
 - `[default=die]` — if faillock itself fails, stop the entire PAM stack
 
-> **Important:** Keep the existing `[success=2 default=ignore]` (or similar) control on `pam_unix.so` — the number may need adjusting if you add more modules. The number tells PAM how many modules to skip on success.
+> **Important:** The `success=3` on `pam_unix.so` means "on success, skip 3 modules" — it must skip `authfail`, `pam_sss.so` (added automatically by libpam-sss), and `pam_deny.so` to land on `pam_permit.so`. If your stack has a different number of modules between `pam_unix.so` and `pam_permit.so`, adjust the number accordingly. You can verify with `cat /etc/pam.d/common-auth` and count the modules after `pam_unix.so` up to (but not including) `pam_permit.so`.
 
 Now add the account check. Edit `/etc/pam.d/common-account`:
 
@@ -411,16 +411,18 @@ On **pam-lab-client**, try logging in with a wrong password 3 times:
 > **Important:** We use `-o PubkeyAuthentication=no` to force password authentication. Without this, SSH would use key-based auth and PAM would never see the failed password attempt — the faillock counter would never increment.
 
 ```bash
-sshpass -p 'wrongpass' ssh -o StrictHostKeyChecking=no -o PubkeyAuthentication=no testuser@192.168.100.1
-sshpass -p 'wrongpass' ssh -o StrictHostKeyChecking=no -o PubkeyAuthentication=no testuser@192.168.100.1
-sshpass -p 'wrongpass' ssh -o StrictHostKeyChecking=no -o PubkeyAuthentication=no testuser@192.168.100.1
+sshpass -p 'wrongpass' ssh -o StrictHostKeyChecking=no -o PubkeyAuthentication=no testuser@192.168.100.1 echo "Login succeeded"
+sshpass -p 'wrongpass' ssh -o StrictHostKeyChecking=no -o PubkeyAuthentication=no testuser@192.168.100.1 echo "Login succeeded"
+sshpass -p 'wrongpass' ssh -o StrictHostKeyChecking=no -o PubkeyAuthentication=no testuser@192.168.100.1 echo "Login succeeded"
 ```
 
-Each attempt should show "Permission denied". Now try with the **correct** password:
+> **Note:** We append `echo "Login succeeded"` to each command. If the login fails, `sshpass` returns silently with no output — without a remote command, you can't tell if the login succeeded or failed. If you see "Login succeeded", the login worked; if you see nothing, it was denied.
+
+Each attempt should produce no output (login denied). Now try with the **correct** password:
 
 ```bash
-sshpass -p 'Test123!' ssh -o StrictHostKeyChecking=no -o PubkeyAuthentication=no testuser@192.168.100.1
-# Permission denied — the account is LOCKED even with the right password!
+sshpass -p 'Test123!' ssh -o StrictHostKeyChecking=no -o PubkeyAuthentication=no testuser@192.168.100.1 echo "Login succeeded"
+# No output — the account is LOCKED even with the right password!
 ```
 
 ### 3.5 Check lock status on the server
@@ -449,11 +451,15 @@ sudo faillock --user testuser --reset
 From **pam-lab-client**, try logging in with the correct password again:
 
 ```bash
-sshpass -p 'Test123!' ssh -o StrictHostKeyChecking=no -o PubkeyAuthentication=no testuser@192.168.100.1
-# Should work now!
+sshpass -p 'Test123!' ssh -o StrictHostKeyChecking=no -o PubkeyAuthentication=no testuser@192.168.100.1 echo "Login succeeded"
+# Should print "Login succeeded" — the account is unlocked!
 ```
 
-Type `exit` to disconnect.
+> **Warning — Faillock interaction with later exercises:**
+> faillock remains active after this exercise. If you proceed to exercises 5 (pam_time)
+> or 6 (pam_access), access denials from those modules will also generate faillock entries.
+> After 3 cumulative denials the account locks. Before starting each exercise, reset:
+> `sudo faillock --user testuser --reset`
 
 ---
 
@@ -1106,6 +1112,10 @@ ldap_group_search_base = ou=groups,dc=pam-lab,dc=local
 # (in production, use a read-only service account, not the admin)
 ldap_default_bind_dn = cn=admin,dc=pam-lab,dc=local
 ldap_default_authtok = ldapadmin
+
+# Disable TLS for authentication (lab only — NEVER in production!)
+# Without this, sssd tries STARTTLS which fails if LDAP has no TLS configured
+ldap_auth_disable_tls_never_use_in_production = true
 ```
 
 sssd is very strict about file permissions — it won't start if the config is world-readable:

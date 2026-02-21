@@ -263,6 +263,9 @@ runcmd:
   - printf '%b\n' "$(cat /etc/motd.raw)" > /etc/motd
   - rm -f /etc/motd.raw
   - systemctl restart sshd
+  # Re-set test user passwords after pam-auth-update (libpam-sss may alter PAM stack)
+  - echo "testuser:Test123!" | chpasswd
+  - echo "alice:Alice123!" | chpasswd
   - echo "=== pam-lab-server VM is ready! ==="
 USERDATA
 

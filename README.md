@@ -124,6 +124,22 @@ qlab log pam-lab-ldap
 qlab status
 ```
 
+## Automated Tests
+
+An automated test suite validates exercises 1–7 and 9 against running VMs:
+
+```bash
+# Start the lab first
+qlab run pam-lab
+# Wait ~90s for cloud-init, then run all tests
+bash tests/run_all.sh
+
+# Skip a specific exercise (e.g. LDAP)
+bash tests/run_all.sh --skip 09
+```
+
+Each test configures the PAM change, verifies the expected behavior, and restores the original state. Tests are idempotent and require no manual interaction.
+
 ## Resetting
 
 To start fresh, stop and re-run:

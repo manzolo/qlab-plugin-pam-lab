@@ -149,7 +149,6 @@ write_files:
               - 192.168.100.1/24
   - path: /home/labuser/pam-backup.sh
     permissions: '0755'
-    owner: labuser:labuser
     content: |
       #!/bin/bash
       # Backup PAM and SSSD configuration
@@ -175,7 +174,6 @@ write_files:
       ls -la "$BACKUP_DIR/"
   - path: /home/labuser/pam-restore.sh
     permissions: '0755'
-    owner: labuser:labuser
     content: |
       #!/bin/bash
       # Restore PAM and SSSD configuration from the most recent backup
@@ -244,6 +242,8 @@ write_files:
 
 runcmd:
   - netplan apply
+  # Fix ownership of helper scripts
+  - chown labuser:labuser /home/labuser/pam-backup.sh /home/labuser/pam-restore.sh
   # Add host entries
   - echo "192.168.100.2 pam-lab-client" >> /etc/hosts
   - echo "192.168.100.3 pam-lab-ldap" >> /etc/hosts
@@ -424,7 +424,6 @@ write_files:
               - 192.168.100.3/24
   - path: /home/labuser/ldap-setup.sh
     permissions: '0755'
-    owner: labuser:labuser
     content: |
       #!/bin/bash
       set -e
@@ -554,6 +553,8 @@ write_files:
 
 runcmd:
   - netplan apply
+  # Fix ownership of helper scripts
+  - chown labuser:labuser /home/labuser/ldap-setup.sh
   # Add host entries
   - echo "192.168.100.1 pam-lab-server" >> /etc/hosts
   - echo "192.168.100.2 pam-lab-client" >> /etc/hosts

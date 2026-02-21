@@ -319,16 +319,19 @@ account required pam_faillock.so
 
 On **pam-lab-client**, attempt 3 failed logins:
 
+> **Important:** Use `-o PubkeyAuthentication=no` to force password authentication, otherwise SSH may use key-based auth and PAM never sees the failure.
+
 ```bash
-sshpass -p 'wrongpass' ssh -o StrictHostKeyChecking=no testuser@192.168.100.1
-sshpass -p 'wrongpass' ssh -o StrictHostKeyChecking=no testuser@192.168.100.1
-sshpass -p 'wrongpass' ssh -o StrictHostKeyChecking=no testuser@192.168.100.1
+sshpass -p 'wrongpass' ssh -o StrictHostKeyChecking=no -o PubkeyAuthentication=no testuser@192.168.100.1
+sshpass -p 'wrongpass' ssh -o StrictHostKeyChecking=no -o PubkeyAuthentication=no testuser@192.168.100.1
+sshpass -p 'wrongpass' ssh -o StrictHostKeyChecking=no -o PubkeyAuthentication=no testuser@192.168.100.1
 ```
 
 Now try with the correct password — it should be locked:
 
 ```bash
-sshpass -p 'Test123!' ssh -o StrictHostKeyChecking=no testuser@192.168.100.1
+sshpass -p 'Test123!' ssh -o StrictHostKeyChecking=no -o PubkeyAuthentication=no testuser@192.168.100.1
+# Permission denied — account is locked!
 ```
 
 ### 3.4 Check lock status on the server
@@ -350,7 +353,7 @@ sudo faillock --user testuser --reset
 From **pam-lab-client**:
 
 ```bash
-sshpass -p 'Test123!' ssh -o StrictHostKeyChecking=no testuser@192.168.100.1
+sshpass -p 'Test123!' ssh -o StrictHostKeyChecking=no -o PubkeyAuthentication=no testuser@192.168.100.1
 # Should work now!
 ```
 
@@ -504,13 +507,13 @@ date
 If the current time falls outside the allowed window, test from **pam-lab-client**:
 
 ```bash
-sshpass -p 'Test123!' ssh -o StrictHostKeyChecking=no testuser@192.168.100.1
+sshpass -p 'Test123!' ssh -o StrictHostKeyChecking=no -o PubkeyAuthentication=no testuser@192.168.100.1
 ```
 
 ### 5.5 Verify that alice is NOT restricted
 
 ```bash
-sshpass -p 'Alice123!' ssh -o StrictHostKeyChecking=no alice@192.168.100.1
+sshpass -p 'Alice123!' ssh -o StrictHostKeyChecking=no -o PubkeyAuthentication=no alice@192.168.100.1
 # Should always work (no time restriction for alice)
 ```
 
@@ -571,7 +574,7 @@ Example — allow testuser only from the client VM, deny from everywhere else:
 From **pam-lab-client** (192.168.100.2):
 
 ```bash
-sshpass -p 'Test123!' ssh -o StrictHostKeyChecking=no testuser@192.168.100.1
+sshpass -p 'Test123!' ssh -o StrictHostKeyChecking=no -o PubkeyAuthentication=no testuser@192.168.100.1
 # Should work (allowed from 192.168.100.2)
 ```
 
@@ -589,7 +592,7 @@ ssh testuser@localhost
 From **pam-lab-client**:
 
 ```bash
-sshpass -p 'Alice123!' ssh -o StrictHostKeyChecking=no alice@192.168.100.1
+sshpass -p 'Alice123!' ssh -o StrictHostKeyChecking=no -o PubkeyAuthentication=no alice@192.168.100.1
 # Should work (ALL : ALL allows everyone else)
 ```
 
@@ -650,7 +653,7 @@ session    optional    pam_exec.so /usr/local/bin/pam-audit.sh
 From **pam-lab-client** or another session:
 
 ```bash
-sshpass -p 'Test123!' ssh -o StrictHostKeyChecking=no testuser@192.168.100.1 "echo hello"
+sshpass -p 'Test123!' ssh -o StrictHostKeyChecking=no -o PubkeyAuthentication=no testuser@192.168.100.1 "echo hello"
 ```
 
 ### 7.5 Check the audit log
@@ -950,7 +953,7 @@ You should see the LDAP users with their UIDs (10001, 10002).
 From **pam-lab-client**:
 
 ```bash
-sshpass -p 'Ldap123!' ssh -o StrictHostKeyChecking=no ldapuser1@192.168.100.1
+sshpass -p 'Ldap123!' ssh -o StrictHostKeyChecking=no -o PubkeyAuthentication=no ldapuser1@192.168.100.1
 ```
 
 You should be logged in as `ldapuser1` with a home directory automatically created.
@@ -965,7 +968,7 @@ exit
 ### 9.10 Test the second LDAP user
 
 ```bash
-sshpass -p 'Ldap456!' ssh -o StrictHostKeyChecking=no ldapuser2@192.168.100.1
+sshpass -p 'Ldap456!' ssh -o StrictHostKeyChecking=no -o PubkeyAuthentication=no ldapuser2@192.168.100.1
 whoami
 id
 exit
@@ -976,14 +979,14 @@ exit
 From **pam-lab-client**, verify that local users still work:
 
 ```bash
-sshpass -p 'Test123!' ssh -o StrictHostKeyChecking=no testuser@192.168.100.1
+sshpass -p 'Test123!' ssh -o StrictHostKeyChecking=no -o PubkeyAuthentication=no testuser@192.168.100.1
 exit
 ```
 
 And LDAP users work:
 
 ```bash
-sshpass -p 'Ldap123!' ssh -o StrictHostKeyChecking=no ldapuser1@192.168.100.1
+sshpass -p 'Ldap123!' ssh -o StrictHostKeyChecking=no -o PubkeyAuthentication=no ldapuser1@192.168.100.1
 exit
 ```
 

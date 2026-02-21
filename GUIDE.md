@@ -157,13 +157,15 @@ type  control  module  [arguments]
 
 ### 1.5 Test with pamtester
 
+> **Note:** `pamtester` needs root privileges to read `/etc/shadow`, so always use `sudo`.
+
 ```bash
 # Test authentication for testuser
-pamtester login testuser authenticate
+sudo pamtester login testuser authenticate
 # Enter password: Test123!
 
 # Test with wrong password
-pamtester login testuser authenticate
+sudo pamtester login testuser authenticate
 # Enter password: wrongpassword
 ```
 
@@ -250,7 +252,7 @@ passwd
 ```bash
 # Back as labuser
 exit
-pamtester passwd testuser chauthtok
+sudo pamtester passwd testuser chauthtok
 ```
 
 ---

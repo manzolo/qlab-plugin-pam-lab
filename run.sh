@@ -230,7 +230,7 @@ write_files:
           \033[0;32msssd/pam_sss\033[0m      LDAP integration
 
         \033[1;33mUseful Commands:\033[0m
-          \033[0;32mpamtester <service> <user> authenticate\033[0m
+          \033[0;32msudo pamtester <service> <user> authenticate\033[0m
           \033[0;32mcat /etc/pam.d/common-auth\033[0m
           \033[0;32mfaillock --user testuser\033[0m
 

@@ -606,13 +606,15 @@ On **pam-lab-server**:
 sudo nano /etc/pam.d/sshd
 ```
 
-Find the line `@include common-account` and add this line **after** it:
+Find the line `@include common-account` and add this line **before** it:
 
 ```
 account    required    pam_time.so
 ```
 
-This tells PAM: "After the standard account checks, also check time restrictions. If the check fails (`required`), deny access."
+> **Why before `common-account`?** The `common-account` file contains `pam_localuser.so` with control `sufficient` — for local users this succeeds and skips all remaining account modules. If you place `pam_time` after the include, it will never be reached for local users.
+
+This tells PAM: "Before the standard account checks, check time restrictions. If the check fails (`required`), deny access."
 
 ### 5.3 Understand the time.conf format
 
@@ -715,7 +717,7 @@ On **pam-lab-server**:
 sudo nano /etc/pam.d/sshd
 ```
 
-Add after `@include common-account`:
+Add **before** `@include common-account` (same reason as pam_time — `pam_localuser.so sufficient` inside `common-account` would skip modules placed after the include):
 
 ```
 account    required    pam_access.so

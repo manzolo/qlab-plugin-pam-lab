@@ -102,7 +102,7 @@ if [[ -z "$WORKSPACE_DIR" ]]; then
 fi
 
 STATE_DIR="$WORKSPACE_DIR/.qlab/state"
-SSH_KEY="$WORKSPACE_DIR/.qlab/ssh/qlab_key"
+SSH_KEY="$WORKSPACE_DIR/.qlab/ssh/qlab_id_rsa"
 
 # ── Port discovery ──────────────────────────────────────────────────
 _get_port() {

@@ -51,10 +51,10 @@ assert "Client VM is reachable via SSH" ssh_client "echo ok"
 # Verify cloud-init has finished
 log_info "Checking cloud-init status..."
 server_ci=$(ssh_server "cloud-init status 2>/dev/null || echo done") || true
-assert_contains "Server cloud-init is done" "$server_ci" "done\|status: done"
+assert_contains "Server cloud-init is done" "$server_ci" "done|status: done"
 
 client_ci=$(ssh_client "cloud-init status 2>/dev/null || echo done") || true
-assert_contains "Client cloud-init is done" "$client_ci" "done\|status: done"
+assert_contains "Client cloud-init is done" "$client_ci" "done|status: done"
 
 # Reset to clean state before starting
 reset_users

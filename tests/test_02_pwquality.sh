@@ -30,16 +30,18 @@ pw_stack=$(ssh_server "cat /etc/pam.d/common-password")
 assert_contains "pam_pwquality is in password stack" "$pw_stack" "pam_pwquality\\.so"
 
 # ── Test weak passwords via pamtester ────────────────────────────────
-# pamtester as root skips old password, only asks for new one
-weak_result=$(ssh_server "echo -e 'abc\nabc' | sudo pamtester passwd testuser chauthtok" 2>&1) || true
-assert_contains "Rejects 'abc' (too short)" "$weak_result" "BAD PASSWORD\|Password quality check failed\|chauthtok failed"
+# Note: pamtester as root shows "BAD PASSWORD" warnings but still succeeds
+# (root can bypass pwquality). We capture the full output and check for the warning.
+weak_result=$(ssh_server "echo -e 'abc\nabc' | sudo pamtester passwd testuser chauthtok 2>&1") || true
+assert_contains "Detects 'abc' as weak (too short)" "$weak_result" "BAD PASSWORD"
 
-weak2=$(ssh_server "echo -e 'abcdefghijklm\nabcdefghijklm' | sudo pamtester passwd testuser chauthtok" 2>&1) || true
-assert_contains "Rejects 'abcdefghijklm' (no uppercase/digit/special)" "$weak2" "BAD PASSWORD\|Password quality check failed\|chauthtok failed"
+weak2=$(ssh_server "echo -e 'abcdefghijklm\nabcdefghijklm' | sudo pamtester passwd testuser chauthtok 2>&1") || true
+assert_contains "Detects 'abcdefghijklm' as weak (not enough classes)" "$weak2" "BAD PASSWORD"
 
-# ── Test strong password ─────────────────────────────────────────────
-strong=$(ssh_server "echo -e 'MyStr0ng!Pass99\nMyStr0ng!Pass99' | sudo pamtester passwd testuser chauthtok" 2>&1) || true
+# ── Test strong password (no warning) ───────────────────────────────
+strong=$(ssh_server "echo -e 'MyStr0ng!Pass99\nMyStr0ng!Pass99' | sudo pamtester passwd testuser chauthtok 2>&1") || true
 assert_contains "Accepts 'MyStr0ng!Pass99'" "$strong" "successfully"
+assert_not_contains "No BAD PASSWORD warning for strong password" "$strong" "BAD PASSWORD"
 
 # ── Cleanup ─────────────────────────────────────────────────────────
 log_info "Restoring PAM and resetting passwords..."

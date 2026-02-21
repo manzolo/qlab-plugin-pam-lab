@@ -252,7 +252,12 @@ passwd
 ```bash
 # Back as labuser
 exit
+
+# With sudo, pamtester runs as root — it skips the old password
+# and only asks for the new one (twice)
 sudo pamtester passwd testuser chauthtok
+# New password: abc          → should be rejected by pam_pwquality!
+# New password: MyStr0ng!Pass99  → should succeed
 ```
 
 ---

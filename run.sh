@@ -216,8 +216,8 @@ write_files:
           \033[0;32malice\033[0m    / Alice123!
 
         \033[1;33mSafety Net:\033[0m
-          \033[0;32m~/pam-backup.sh\033[0m     backup PAM config
-          \033[0;32m~/pam-restore.sh\033[0m    restore from backup
+          \033[0;32msudo ~/pam-backup.sh\033[0m     backup PAM config
+          \033[0;32msudo ~/pam-restore.sh\033[0m    restore from backup
 
         \033[1;33mInstalled PAM modules:\033[0m
           \033[0;32mpam_pwquality\033[0m     password complexity

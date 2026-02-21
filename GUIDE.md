@@ -77,7 +77,7 @@ qlab shell pam-lab-server
 On **pam-lab-server**, run the backup script before each exercise:
 
 ```bash
-~/pam-backup.sh
+sudo ~/pam-backup.sh
 ```
 
 ### 3. Restore if things go wrong
@@ -85,7 +85,7 @@ On **pam-lab-server**, run the backup script before each exercise:
 If you get locked out or something breaks:
 
 ```bash
-~/pam-restore.sh
+sudo ~/pam-restore.sh
 sudo systemctl restart sshd
 ```
 
@@ -179,7 +179,7 @@ sudo pamtester login testuser authenticate
 ### 2.1 Backup first!
 
 ```bash
-~/pam-backup.sh
+sudo ~/pam-backup.sh
 ```
 
 ### 2.2 Check current pwquality config
@@ -265,7 +265,7 @@ sudo pamtester passwd testuser chauthtok
 ### 3.1 Backup first!
 
 ```bash
-~/pam-backup.sh
+sudo ~/pam-backup.sh
 ```
 
 ### 3.2 Configure pam_faillock
@@ -359,7 +359,7 @@ sshpass -p 'Test123!' ssh -o StrictHostKeyChecking=no testuser@192.168.100.1
 ### 4.1 Backup first!
 
 ```bash
-~/pam-backup.sh
+sudo ~/pam-backup.sh
 ```
 
 ### 4.2 Check current limits
@@ -447,7 +447,7 @@ su - alice
 ### 5.1 Backup first!
 
 ```bash
-~/pam-backup.sh
+sudo ~/pam-backup.sh
 ```
 
 ### 5.2 Enable pam_time for SSH
@@ -523,7 +523,7 @@ Remove or comment out the rule in `/etc/security/time.conf` when done.
 ### 6.1 Backup first!
 
 ```bash
-~/pam-backup.sh
+sudo ~/pam-backup.sh
 ```
 
 ### 6.2 Enable pam_access for SSH
@@ -602,7 +602,7 @@ Remove or comment out the rules in `/etc/security/access.conf` when done.
 ### 7.1 Backup first!
 
 ```bash
-~/pam-backup.sh
+sudo ~/pam-backup.sh
 ```
 
 ### 7.2 Create an audit script
@@ -686,7 +686,7 @@ auth    optional    pam_exec.so /usr/local/bin/pam-audit.sh
 ### 8.1 Backup first!
 
 ```bash
-~/pam-backup.sh
+sudo ~/pam-backup.sh
 ```
 
 ### 8.2 Generate TOTP secret for testuser
@@ -807,7 +807,7 @@ ldapsearch -x -H ldap://192.168.100.3 -b "dc=pam-lab,dc=local" -LLL "(objectClas
 ### 9.2 Backup first!
 
 ```bash
-~/pam-backup.sh
+sudo ~/pam-backup.sh
 ```
 
 ### 9.3 Configure sssd
@@ -991,7 +991,7 @@ exit
 Use your backup SSH session (that you kept open!) to restore:
 
 ```bash
-~/pam-restore.sh
+sudo ~/pam-restore.sh
 sudo systemctl restart sshd
 ```
 
@@ -1015,7 +1015,7 @@ sudo journalctl -u sshd -n 20 --no-pager
 Restore PAM config:
 
 ```bash
-~/pam-restore.sh
+sudo ~/pam-restore.sh
 sudo systemctl restart sshd
 ```
 

@@ -2,171 +2,53 @@
 
 [![QLab Plugin](https://img.shields.io/badge/QLab-Plugin-blue)](https://github.com/manzolo/qlab)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/Platform-Linux-lightgrey)](https://github.com/manzolo/qlab)
+[![Walkthrough](https://img.shields.io/badge/walkthrough-EN%20%26%20IT-informational)](docs/walkthrough-en.pdf)
 
-A [QLab](https://github.com/manzolo/qlab) plugin that boots three virtual machines for practicing PAM (Pluggable Authentication Modules) configuration, including password policies, account lockout, 2FA, and centralized LDAP authentication via sssd.
+A three-VM [QLab](https://github.com/manzolo/qlab) lab — a PAM server, a client that logs
+into it over the network, and an LDAP server — for learning the stack that decides whether
+you get in: read it, call it directly with `pamtester`, then change it, module by module.
 
-## Architecture
+## Quick start
 
-```
-    Internal LAN (192.168.100.0/24)
-┌────────────────────────────────────────────────────────────┐
-│                                                            │
-│  ┌──────────────────┐   ┌───────────────┐  ┌──────────────┐│
-│  │  pam-lab-server  │   │pam-lab-ldap   │  │pam-lab-client││
-│  │  192.168.100.1   │   │192.168.100.3  │  │              ││
-│  │  PAM configs     │   │OpenLDAP       │  │192.168.100.2 ││
-│  │  sssd client     │   │(pam-lab.local)│  │              ││
-│  └──────────────────┘   │               │  │SSH test      ││
-│                         └───────────────┘  └──────────────┘│
-└────────────────────────────────────────────────────────────┘
+```bash
+qlab install pam-lab
+qlab run pam-lab             # boots 3 VMs (~120s)
+qlab shell pam-lab-server    # where PAM is configured — labuser / labpass
+qlab shell pam-lab-client    # logs into the server over SSH
+qlab shell pam-lab-ldap      # the directory server
+qlab test pam-lab            # run the automated checks
+qlab stop pam-lab
 ```
 
-## Objectives
+## What's inside
 
-- Understand PAM module types and control flags (required, requisite, sufficient, optional)
-- Enforce password complexity with pam_pwquality
-- Lock accounts after failed attempts with pam_faillock
-- Set resource limits with pam_limits
-- Restrict login by time and host with pam_time and pam_access
-- Add custom audit scripts with pam_exec
-- Configure TOTP two-factor authentication with pam_google_authenticator
-- Integrate LDAP authentication via sssd
-
-## How It Works
-
-1. **Cloud image**: Downloads a minimal Ubuntu 22.04 cloud image (~250MB)
-2. **Cloud-init**: Creates `user-data` for all VMs with PAM/LDAP packages
-3. **ISO generation**: Packs cloud-init files into ISOs (cidata)
-4. **Overlay disks**: Creates COW disks for each VM (original stays untouched)
-5. **QEMU boot**: Starts three VMs with SSH access and a shared internal LAN
-
-## Credentials
-
-All VMs use the same base credentials:
-- **Username:** `labuser`
-- **Password:** `labpass`
-
-Test users on the server:
-- `testuser` / `Test123!`
-- `alice` / `Alice123!`
-
-LDAP users (on pam-lab-ldap):
-- `ldapuser1` / `Ldap123!`
-- `ldapuser2` / `Ldap456!`
+| # | Exercise | Module |
+|---|----------|--------|
+| 1 | PAM anatomy | types & control flags in `/etc/pam.d/` |
+| 2 | Password policy | `pam_pwquality` |
+| 3 | Account lockout | `pam_faillock` |
+| 4 | Resource limits | `pam_limits` |
+| 5 | Time-based access | `pam_time` |
+| 6 | Host/user access | `pam_access` |
+| 7 | Custom audit | `pam_exec` |
+| 8 | Two-factor auth | `pam_google_authenticator` |
+| 9 | Central identity | `sssd` against LDAP |
 
 ## Network
 
-| VM              | SSH (host) | Internal LAN IP  |
-|-----------------|------------|------------------|
-| pam-lab-server  | dynamic    | 192.168.100.1    |
-| pam-lab-client  | dynamic    | 192.168.100.2    |
-| pam-lab-ldap    | dynamic    | 192.168.100.3    |
+Private LAN `192.168.100.0/24`, isolated between the three VMs.
 
-> All host ports are dynamically allocated. Use `qlab ports` to see the actual mappings.
+| VM | Address | Role |
+|----|---------|------|
+| `pam-lab-server` | `192.168.100.1` | PAM configs, sssd client |
+| `pam-lab-client` | `192.168.100.2` | logs into the server over SSH |
+| `pam-lab-ldap` | `192.168.100.3` | OpenLDAP (`pam-lab.local`) |
 
-The VMs are connected by a direct internal LAN (`192.168.100.0/24`) via QEMU socket networking.
+Accounts: `labuser` / `labpass` · lab users `testuser` / `Test123!`, `alice` / `Alice123!` ·
+LDAP users `ldapuser1` / `Ldap123!`, `ldapuser2` / `Ldap456!`. SSH forwarded — see `qlab ports`.
 
-## Walkthrough
+## Learn more
 
-`docs/` holds an illustrated account of a real run — every block of output in it
-was captured while the lab was running, not written by hand.
-
-| English | Italiano |
-|---|---|
-| [`docs/walkthrough-en.pdf`](docs/walkthrough-en.pdf) | [`docs/walkthrough-it.pdf`](docs/walkthrough-it.pdf) |
-
-```bash
-# from the qlab checkout
-python3 tools/walkthrough/build.py ../qlab-plugin-pam-lab        # English
-python3 tools/walkthrough/build.py ../qlab-plugin-pam-lab -it    # Italian
-python3 tools/walkthrough/build.py ../qlab-plugin-pam-lab --live # re-capture first
-```
-
-## Usage
-
-```bash
-# Install the plugin
-qlab install pam-lab
-
-# Run the lab (starts all 3 VMs)
-qlab run pam-lab
-
-# Wait ~90s for boot and package installation, then:
-
-# Connect to the PAM server
-qlab shell pam-lab-server
-
-# Connect to the SSH client
-qlab shell pam-lab-client
-
-# Connect to the LDAP server
-qlab shell pam-lab-ldap
-
-# Stop all VMs
-qlab stop pam-lab
-
-# Stop a single VM
-qlab stop pam-lab-server
-qlab stop pam-lab-client
-qlab stop pam-lab-ldap
-```
-
-## Exercises
-
-> **New to PAM?** See the [Step-by-Step Guide](GUIDE.md) for complete walkthroughs with full config examples.
-
-| # | Exercise | What you'll do |
-|---|----------|----------------|
-| 1 | **PAM Anatomy** | Explore `/etc/pam.d/`, understand module types and control flags |
-| 2 | **Password Policy (pam_pwquality)** | Enforce minimum length, complexity, retry limits |
-| 3 | **Account Lockout (pam_faillock)** | Lock accounts after N failed attempts, unlock with `faillock` |
-| 4 | **Resource Limits (pam_limits)** | Set nproc, nofile, maxlogins per user/group |
-| 5 | **Time-based Access (pam_time)** | Restrict login to specific times via `time.conf` |
-| 6 | **Host/User Access Control (pam_access)** | Permit/deny by user and source host via `access.conf` |
-| 7 | **Custom Audit (pam_exec)** | Run custom scripts on login/logout events |
-| 8 | **Two-Factor Auth (pam_google_authenticator)** | Set up TOTP 2FA on SSH, scan QR, test from client |
-| 9 | **LDAP + sssd** | Configure sssd for centralized LDAP authentication |
-
-## Managing VMs
-
-```bash
-# View boot logs
-qlab log pam-lab-server
-qlab log pam-lab-client
-qlab log pam-lab-ldap
-
-# Check running VMs
-qlab status
-```
-
-## Automated Tests
-
-An automated test suite validates exercises 1–7 and 9 against running VMs:
-
-```bash
-# Start the lab first
-qlab run pam-lab
-# Wait ~90s for cloud-init, then run all tests
-bash tests/run_all.sh
-
-# Skip a specific exercise (e.g. LDAP)
-bash tests/run_all.sh --skip 09
-```
-
-Each test configures the PAM change, verifies the expected behavior, and restores the original state. Tests are idempotent and require no manual interaction.
-
-## Resetting
-
-To start fresh, stop and re-run:
-
-```bash
-qlab stop pam-lab
-qlab run pam-lab
-```
-
-Or reset the entire workspace:
-
-```bash
-qlab reset
-```
+- 📖 **[Step-by-step guide](GUIDE.md)** — every module with full config examples
+- 📄 **Illustrated walkthrough** — a real run, captured live: **[English](docs/walkthrough-en.pdf)** · **[Italiano](docs/walkthrough-it.pdf)**
+- 🧩 **[QLab](https://github.com/manzolo/qlab)** — the plugin runner: how install, overlays and cloud-init work

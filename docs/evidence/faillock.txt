@@ -1,0 +1,35 @@
+$ the right password, before anything is changed
+  login succeeded
+
+$ the auth stack, rebuilt around pam_faillock
+auth    required      pam_faillock.so preauth silent deny=3 unlock_time=300
+auth    [success=3 default=ignore]  pam_unix.so nullok
+auth    [default=die] pam_faillock.so authfail deny=3 unlock_time=300
+auth    requisite     pam_deny.so
+auth    required      pam_permit.so
+
+account required pam_faillock.so
+
+$ three wrong passwords from the client...
+  attempt 1: refused
+  attempt 2: refused
+  attempt 3: refused
+$ ...and then the right one
+  refused
+
+$ what the server made of those four attempts
+pam_unix(sshd:auth): authentication failure; logname= uid=0 euid=0 tty=ssh ruser= rhost=192.168.100.2  user=testuser
+pam_unix(sshd:auth): authentication failure; logname= uid=0 euid=0 tty=ssh ruser= rhost=192.168.100.2  user=testuser
+pam_unix(sshd:auth): authentication failure; logname= uid=0 euid=0 tty=ssh ruser= rhost=192.168.100.2  user=testuser
+pam_faillock(sshd:auth): Consecutive login failures for user testuser account temporarily locked
+
+$ faillock --user testuser     (on the server)
+testuser:
+When                Type  Source                                           Valid
+2026-09-14 14:20:49 RHOST 192.168.100.2                                        V
+2026-09-14 14:20:52 RHOST 192.168.100.2                                        V
+2026-09-14 14:20:55 RHOST 192.168.100.2                                        V
+
+$ faillock --user testuser --reset, then the right password again
+  login succeeded
+(stack restored)

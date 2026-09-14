@@ -1,0 +1,13 @@
+$ a shell script bolted onto the session stack with pam_exec
+session    optional    pam_exec.so /usr/local/bin/pam-audit.sh
+#!/bin/bash
+echo "$(date "+%F %T") PAM_TYPE=$PAM_TYPE USER=$PAM_USER RHOST=$PAM_RHOST SERVICE=$PAM_SERVICE TTY=$PAM_TTY" >> /var/log/pam-audit.log
+
+$ one SSH login from the client...
+  hello
+
+$ ...and what the script wrote
+2026-09-14 14:21:40 PAM_TYPE=open_session USER=testuser RHOST=192.168.100.2 SERVICE=sshd TTY=ssh
+2026-09-14 14:21:40 PAM_TYPE=close_session USER=testuser RHOST=192.168.100.2 SERVICE=sshd TTY=ssh
+2026-09-14 14:21:40 PAM_TYPE=open_session USER=labuser RHOST=10.0.2.2 SERVICE=sshd TTY=ssh
+(sshd stack restored)

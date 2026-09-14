@@ -1,0 +1,34 @@
+$ before: does this machine know who ldapuser1 is?
+passwd:         files systemd sss
+group:          files systemd sss
+shadow:         files sss
+inactive
+ldapuser1:*:10001:10000:LDAP User1:/home/ldapuser1:/bin/bash
+
+$ the directory itself, on 192.168.100.3
+dn: uid=ldapuser1,ou=users,dc=pam-lab,dc=local
+uid: ldapuser1
+uidNumber: 10001
+gidNumber: 10000
+homeDirectory: /home/ldapuser1
+loginShell: /bin/bash
+
+
+$ pointing the server at it: /etc/sssd/sssd.conf
+passwd:         files sss
+group:          files sss
+shadow:         files sss
+active
+
+$ after: the same questions, same machine
+ldapuser1:*:10001:10000:LDAP User1:/home/ldapuser1:/bin/bash
+uid=10001(ldapuser1) gid=10000(pamtesters) groups=10000(pamtesters)
+pamtesters:*:10000:ldapuser1,ldapuser2
+
+lines mentioning ldapuser1 in /etc/passwd: 0
+
+$ and ldapuser1 logging in over SSH, from the client
+  ldapuser1
+  /home/ldapuser1
+  . .. .bash_logout .bashrc .profile 
+(sssd stopped, nsswitch and the session stack restored)

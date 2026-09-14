@@ -1,0 +1,15 @@
+$ pamtester sshd testuser authenticate     — right password
+pamtester: invoking pam_start(sshd, testuser, ...)
+pamtester: performing operation - authenticate
+Password: pamtester: successfully authenticated
+
+$ the same call, wrong password
+pamtester: invoking pam_start(sshd, testuser, ...)
+pamtester: performing operation - authenticate
+Password: pamtester: Authentication failure
+
+$ and the four stacks of the same service, asked one at a time
+authenticate   Password: pamtester: successfully authenticated
+acct_mgmt      pamtester: account management done.
+open_session   pamtester: successfully opened a session
+close_session  pamtester: session has successfully been closed.

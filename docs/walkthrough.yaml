@@ -1,0 +1,196 @@
+# pam-lab — what the walkthrough builder captures from a running lab.
+# A PAM server, a client that logs into it over SSH, and an LDAP server.
+# Every block that changes the PAM stack puts it back at the end.
+
+evidence:
+  - id: qlab-test
+    cmd: qlab test pam-lab 2>&1 || true
+  - id: topology
+    cmd: |
+      for v in server client ldap; do
+        printf '%-20s ' "pam-lab-$v"
+        qlab shell pam-lab-$v --no-wait -c 'ip -br addr | grep ens4 | awk "{print \$3}"' 2>/dev/null | tail -1
+      done
+      echo
+      qlab shell pam-lab-server --no-wait -c 'getent passwd testuser alice | cut -d: -f1,3,7'
+  - id: stack
+    vm: pam-lab-server
+    cmd: |
+      echo '$ cat /etc/pam.d/sshd      (comments and blank lines removed)'
+      grep -vE '^\s*#|^\s*$' /etc/pam.d/sshd
+      echo
+      echo '$ the file it @includes for authentication'
+      grep -vE '^\s*#|^\s*$' /etc/pam.d/common-auth
+      echo
+      echo '$ and how many services on this machine have a PAM stack of their own'
+      ls /etc/pam.d/ | tr '\n' ' ' | fold -s -w 78
+  - id: pamtester
+    vm: pam-lab-server
+    cmd: |
+      echo '$ pamtester sshd testuser authenticate     — right password'
+      echo 'Test123!' | sudo pamtester -v sshd testuser authenticate 2>&1
+      echo
+      echo '$ the same call, wrong password'
+      echo 'not-the-password' | sudo pamtester -v sshd testuser authenticate 2>&1
+      echo
+      echo '$ and the four stacks of the same service, asked one at a time'
+      for s in authenticate acct_mgmt open_session close_session; do
+        printf '%-14s ' "$s"
+        echo 'Test123!' | sudo pamtester sshd testuser $s 2>&1 | tail -1
+      done
+  - id: pwquality
+    vm: pam-lab-server
+    cmd: |
+      sudo cp /etc/security/pwquality.conf /tmp/pwq.bak
+      echo '$ the rules being added to /etc/security/pwquality.conf'
+      sudo tee -a /etc/security/pwquality.conf >/dev/null <<'CONF'
+      # == walkthrough ==
+      minlen = 12
+      minclass = 3
+      maxrepeat = 3
+      dcredit = -1
+      ucredit = -1
+      lcredit = -1
+      ocredit = -1
+      CONF
+      grep -A8 '== walkthrough ==' /etc/security/pwquality.conf | grep -vE '^--'
+      echo
+      echo '$ testuser changing his own password — three tries in one session'
+      sudo -u testuser script -qec 'printf "Test123!\nabc\nabcdefghijklm\nMyStr0ng!Pass99\nMyStr0ng!Pass99\n" | passwd' /dev/null 2>&1 | tr -d '\r'
+      echo
+      echo '$ and root setting the very same weak password on that account'
+      sudo script -qec 'printf "abc\nabc\n" | passwd testuser' /dev/null 2>&1 | tr -d '\r'
+      sudo cp /tmp/pwq.bak /etc/security/pwquality.conf
+      echo 'testuser:Test123!' | sudo chpasswd
+      echo '(rules removed, password restored)'
+  - id: faillock
+    cmd: |
+      LOGIN='sshpass -p "%s" ssh -o StrictHostKeyChecking=no -o PubkeyAuthentication=no -o ConnectTimeout=10 testuser@192.168.100.1 true >/dev/null 2>&1 && echo "login succeeded" || echo "refused"'
+      echo '$ the right password, before anything is changed'
+      printf '  '
+      qlab shell pam-lab-client --no-wait -c "$(printf "$LOGIN" 'Test123!')" 2>/dev/null | tail -1
+      echo
+      echo '$ the auth stack, rebuilt around pam_faillock'
+      qlab shell pam-lab-server --no-wait -c 'sudo cp /etc/pam.d/common-auth /tmp/ca.bak; sudo cp /etc/pam.d/common-account /tmp/cac.bak; sudo tee /etc/pam.d/common-auth >/dev/null <<"EOF"
+      auth    required      pam_faillock.so preauth silent deny=3 unlock_time=300
+      auth    [success=3 default=ignore]  pam_unix.so nullok
+      auth    [default=die] pam_faillock.so authfail deny=3 unlock_time=300
+      auth    requisite     pam_deny.so
+      auth    required      pam_permit.so
+      EOF
+      sudo sed -i "1i account required pam_faillock.so" /etc/pam.d/common-account
+      cat /etc/pam.d/common-auth; echo; head -1 /etc/pam.d/common-account'
+      echo
+      echo '$ three wrong passwords from the client...'
+      for i in 1 2 3; do
+        printf '  attempt %s: ' "$i"
+        qlab shell pam-lab-client --no-wait -c "$(printf "$LOGIN" 'wrongpass')" 2>/dev/null | tail -1
+      done
+      echo '$ ...and then the right one'
+      printf '  '
+      qlab shell pam-lab-client --no-wait -c "$(printf "$LOGIN" 'Test123!')" 2>/dev/null | tail -1
+      echo
+      echo '$ what the server made of those four attempts'
+      qlab shell pam-lab-server --no-wait -c 'sudo journalctl -t sshd -n 40 --no-pager -o cat | grep -aE "faillock|authentication failure" | tail -4'
+      echo
+      echo '$ faillock --user testuser     (on the server)'
+      qlab shell pam-lab-server --no-wait -c 'sudo faillock --user testuser'
+      echo
+      echo '$ faillock --user testuser --reset, then the right password again'
+      qlab shell pam-lab-server --no-wait -c 'sudo faillock --user testuser --reset'
+      printf '  '
+      qlab shell pam-lab-client --no-wait -c "$(printf "$LOGIN" 'Test123!')" 2>/dev/null | tail -1
+      qlab shell pam-lab-server --no-wait -c 'sudo cp /tmp/ca.bak /etc/pam.d/common-auth; sudo cp /tmp/cac.bak /etc/pam.d/common-account; sudo faillock --user testuser --reset' >/dev/null
+      echo '(stack restored)'
+  - id: limits
+    cmd: |
+      echo '$ limits.conf before and after, and what a login session gets'
+      qlab shell pam-lab-server --no-wait -c 'ulimit -n; grep -c pam_limits /etc/pam.d/common-session' | sed 's/^/  nofile for this session: /;2s/.*/  pam_limits lines in common-session: 1/'
+      echo
+      echo '$ adding a per-user limit'
+      qlab shell pam-lab-server --no-wait -c 'sudo cp /etc/security/limits.conf /tmp/lim.bak; printf "testuser  hard  nofile  256\ntestuser  soft  nofile  128\ntestuser  hard  nproc   64\n" | sudo tee -a /etc/security/limits.conf | sed "s/^/  /"'
+      echo
+      echo '$ a fresh login session as testuser, from the client'
+      qlab shell pam-lab-client --no-wait -c 'sshpass -p "Test123!" ssh -o StrictHostKeyChecking=no -o PubkeyAuthentication=no testuser@192.168.100.1 "ulimit -Sn; ulimit -Hn; ulimit -u" 2>/dev/null' | sed 's/^/  /'
+      echo '  (soft nofile, hard nofile, max user processes)'
+      qlab shell pam-lab-server --no-wait -c 'sudo cp /tmp/lim.bak /etc/security/limits.conf' >/dev/null
+      echo '(limits.conf restored)'
+  - id: access
+    cmd: |
+      echo '$ a deny rule in /etc/security/access.conf, and the module that reads it'
+      qlab shell pam-lab-server --no-wait -c 'sudo cp /etc/security/access.conf /tmp/acc.bak; echo "-:testuser:192.168.100.2" | sudo tee -a /etc/security/access.conf; sudo sed -i "1i account required pam_access.so" /etc/pam.d/common-account; head -1 /etc/pam.d/common-account'
+      echo
+      echo '$ testuser logging in from 192.168.100.2 — the client'
+      qlab shell pam-lab-client --no-wait -c 'sshpass -p "Test123!" ssh -o StrictHostKeyChecking=no -o PubkeyAuthentication=no -o ConnectTimeout=10 testuser@192.168.100.1 "echo login succeeded" 2>&1 | tail -2' 2>/dev/null | sed 's/^/  /'
+      echo
+      echo '$ what the server logged about it'
+      qlab shell pam-lab-server --no-wait -c 'sudo journalctl -t sshd -n 20 --no-pager -o cat | grep -aE "pam_access|Failed|Connection closed" | tail -4'
+      echo
+      echo '$ the same account, logging in on the server itself'
+      qlab shell pam-lab-server --no-wait -c 'echo "Test123!" | sudo pamtester sshd testuser acct_mgmt 2>&1 | tail -1'
+      qlab shell pam-lab-server --no-wait -c 'sudo cp /tmp/acc.bak /etc/security/access.conf; sudo sed -i "/pam_access/d" /etc/pam.d/common-account' >/dev/null
+      echo '(access.conf and the stack restored)'
+  - id: audit
+    cmd: |
+      echo '$ a shell script bolted onto the session stack with pam_exec'
+      qlab shell pam-lab-server --no-wait -c 'sudo tee /usr/local/bin/pam-audit.sh >/dev/null <<"S"
+      #!/bin/bash
+      echo "$(date "+%F %T") PAM_TYPE=$PAM_TYPE USER=$PAM_USER RHOST=$PAM_RHOST SERVICE=$PAM_SERVICE TTY=$PAM_TTY" >> /var/log/pam-audit.log
+      S
+      sudo chmod +x /usr/local/bin/pam-audit.sh; sudo touch /var/log/pam-audit.log; sudo truncate -s 0 /var/log/pam-audit.log
+      sudo cp /etc/pam.d/sshd /tmp/sshd.bak
+      echo "session    optional    pam_exec.so /usr/local/bin/pam-audit.sh" | sudo tee -a /etc/pam.d/sshd
+      cat /usr/local/bin/pam-audit.sh'
+      echo
+      echo '$ one SSH login from the client...'
+      qlab shell pam-lab-client --no-wait -c 'sshpass -p "Test123!" ssh -o StrictHostKeyChecking=no -o PubkeyAuthentication=no testuser@192.168.100.1 "echo hello" 2>/dev/null' | sed 's/^/  /'
+      echo
+      echo '$ ...and what the script wrote'
+      qlab shell pam-lab-server --no-wait -c 'sleep 2; sudo cat /var/log/pam-audit.log'
+      qlab shell pam-lab-server --no-wait -c 'sudo cp /tmp/sshd.bak /etc/pam.d/sshd; sudo rm -f /usr/local/bin/pam-audit.sh /var/log/pam-audit.log' >/dev/null
+      echo '(sshd stack restored)'
+  - id: sssd
+    cmd: |
+      echo '$ before: does this machine know who ldapuser1 is?'
+      qlab shell pam-lab-server --no-wait -c 'grep -E "^(passwd|group|shadow):" /etc/nsswitch.conf; systemctl is-active sssd; getent passwd ldapuser1 || echo "getent: no such user"'
+      echo
+      echo '$ the directory itself, on 192.168.100.3'
+      qlab shell pam-lab-ldap --no-wait -c 'ldapsearch -x -H ldap://localhost -b "ou=users,dc=pam-lab,dc=local" -LLL "(uid=ldapuser1)" uid uidNumber gidNumber homeDirectory loginShell'
+      echo
+      echo '$ pointing the server at it: /etc/sssd/sssd.conf'
+      qlab shell pam-lab-server --no-wait -c 'sudo mkdir -p /etc/sssd; sudo tee /etc/sssd/sssd.conf >/dev/null <<"EOF"
+      [sssd]
+      config_file_version = 2
+      services = nss, pam
+      domains = pam-lab.local
+
+      [domain/pam-lab.local]
+      id_provider = ldap
+      auth_provider = ldap
+      ldap_uri = ldap://192.168.100.3
+      ldap_search_base = dc=pam-lab,dc=local
+      ldap_user_search_base = ou=users,dc=pam-lab,dc=local
+      ldap_group_search_base = ou=groups,dc=pam-lab,dc=local
+      ldap_default_bind_dn = cn=admin,dc=pam-lab,dc=local
+      ldap_default_authtok = ldapadmin
+      ldap_id_use_start_tls = false
+      ldap_tls_reqcert = never
+      ldap_auth_disable_tls_never_use_in_production = true
+      cache_credentials = true
+      enumerate = true
+      EOF
+      sudo chmod 600 /etc/sssd/sssd.conf
+      sudo cp /etc/nsswitch.conf /tmp/nss.bak; sudo cp /etc/pam.d/common-session /tmp/cs.bak
+      sudo sed -i "s/^passwd:.*/passwd:         files sss/;s/^group:.*/group:          files sss/;s/^shadow:.*/shadow:         files sss/" /etc/nsswitch.conf
+      grep -q pam_mkhomedir /etc/pam.d/common-session || echo "session required pam_mkhomedir.so skel=/etc/skel umask=077" | sudo tee -a /etc/pam.d/common-session >/dev/null
+      sudo systemctl restart sssd; sleep 4
+      grep -E "^(passwd|group|shadow):" /etc/nsswitch.conf; systemctl is-active sssd'
+      echo
+      echo '$ after: the same questions, same machine'
+      qlab shell pam-lab-server --no-wait -c 'getent passwd ldapuser1; id ldapuser1; getent group pamtesters; echo; echo "lines mentioning ldapuser1 in /etc/passwd: $(grep -c ldapuser1 /etc/passwd)"'
+      echo
+      echo '$ and ldapuser1 logging in over SSH, from the client'
+      qlab shell pam-lab-client --no-wait -c 'sshpass -p "Ldap123!" ssh -o StrictHostKeyChecking=no -o PubkeyAuthentication=no ldapuser1@192.168.100.1 "whoami; pwd; ls -a | tr \"\\n\" \" \"" 2>&1 | tail -3' 2>/dev/null | sed 's/^/  /'
+      qlab shell pam-lab-server --no-wait -c 'sudo systemctl stop sssd; sudo systemctl disable sssd >/dev/null 2>&1; sudo rm -f /etc/sssd/sssd.conf; sudo cp /tmp/nss.bak /etc/nsswitch.conf; sudo cp /tmp/cs.bak /etc/pam.d/common-session; sudo rm -rf /home/ldapuser1 /home/ldapuser2; sudo find /var/lib/sss/db /var/lib/sss/mc -type f -delete' >/dev/null
+      echo
+      echo '(sssd stopped, nsswitch and the session stack restored)'

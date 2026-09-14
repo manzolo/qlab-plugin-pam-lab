@@ -1,0 +1,13 @@
+$ a deny rule in /etc/security/access.conf, and the module that reads it
+-:testuser:192.168.100.2
+account required pam_access.so
+
+$ testuser logging in from 192.168.100.2 — the client
+  Connection closed by 192.168.100.1 port 22
+
+$ what the server logged about it
+pam_access(sshd:account): access denied for user `testuser' from `192.168.100.2'
+
+$ the same account, logging in on the server itself
+pamtester: account management done.
+(access.conf and the stack restored)

@@ -1,0 +1,15 @@
+$ limits.conf before and after, and what a login session gets
+  nofile for this session: 1024
+  pam_limits lines in common-session: 1
+
+$ adding a per-user limit
+  testuser  hard  nofile  256
+  testuser  soft  nofile  128
+  testuser  hard  nproc   64
+
+$ a fresh login session as testuser, from the client
+  128
+  256
+  64
+  (soft nofile, hard nofile, max user processes)
+(limits.conf restored)

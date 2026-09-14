@@ -1,0 +1,148 @@
+[INFO] Running tests for plugin 'pam-lab'...
+
+
+=========================================
+  pam-lab — Automated Test Suite
+=========================================
+
+  [INFO] Workspace: /home/manzolo/Workspaces/qemu/qlab/qlab
+  [INFO] Server port: 2225
+  [INFO] Client port: 2226
+  [INFO] LDAP port: 2229
+  [INFO] Checking VM connectivity...
+  [PASS] Server VM is reachable via SSH
+  [PASS] Client VM is reachable via SSH
+  [INFO] Checking cloud-init status...
+  [PASS] Server cloud-init is done
+  [PASS] Client cloud-init is done
+  [INFO] Resetting faillock and passwords for testuser/alice...
+BAD PASSWORD: The password contains the user name in some form
+
+Exercise 1 — PAM Anatomy
+
+  [PASS] PAM directory contains sshd
+  [PASS] PAM directory contains login
+  [PASS] PAM directory contains sudo
+  [PASS] sshd includes common-auth
+  [PASS] sshd includes common-account
+  [PASS] sshd includes common-session
+  [PASS] common-auth contains pam_unix.so
+  [PASS] common-account contains pam_unix.so
+  [PASS] common-password contains pam_unix.so
+  [PASS] common-session contains pam_unix.so
+  [PASS] pamtester is installed
+  [PASS] pamtester accepts correct password
+  [PASS] pamtester rejects wrong password
+
+  Exercise 1: All 13 checks passed
+
+Exercise 2 — Password Policy (pam_pwquality)
+
+  [INFO] Configuring pwquality rules...
+  [PASS] pam_pwquality is in password stack
+  [PASS] Detects 'abc' as weak (too short)
+  [PASS] Detects 'abcdefghijklm' as weak (not enough classes)
+  [PASS] Accepts 'MyStr0ng!Pass99'
+  [PASS] No BAD PASSWORD warning for strong password
+  [INFO] Restoring PAM and resetting passwords...
+
+  Exercise 2: All 5 checks passed
+
+Exercise 3 — Account Lockout (pam_faillock)
+
+  [INFO] Resetting faillock and passwords for testuser/alice...
+BAD PASSWORD: The password contains the user name in some form
+  [INFO] Configuring pam_faillock in common-auth...
+  [INFO] Attempting 3 failed logins from client...
+  [PASS] Correct password denied (account locked)
+  [PASS] faillock shows failed attempts
+  [INFO] Unlocking testuser...
+  [PASS] Login succeeds after unlock
+  [INFO] Restoring PAM configuration...
+  [INFO] Resetting faillock and passwords for testuser/alice...
+BAD PASSWORD: The password contains the user name in some form
+
+  Exercise 3: All 3 checks passed
+
+Exercise 4 — Resource Limits (pam_limits)
+
+  [PASS] pam_limits is in the PAM stack
+  [INFO] Configuring resource limits...
+  [PASS] testuser nofile soft limit is 128
+  [PASS] testuser nproc soft limit is 30
+  [PASS] Cannot exceed nofile hard limit
+  [PASS] Can raise nofile within hard limit (200)
+  [INFO] Restoring limits.conf...
+
+  Exercise 4: All 5 checks passed
+
+Exercise 5 — Time-based Access (pam_time)
+
+  [INFO] Resetting faillock and passwords for testuser/alice...
+BAD PASSWORD: The password contains the user name in some form
+  [INFO] Enabling pam_time for sshd...
+  [INFO] Adding time rule to restrict testuser to 03:00-03:01 only...
+  [PASS] testuser denied by time restriction
+  [PASS] alice not restricted by pam_time
+  [INFO] Restoring pam_time configuration...
+  [INFO] Resetting faillock and passwords for testuser/alice...
+BAD PASSWORD: The password contains the user name in some form
+
+  Exercise 5: All 2 checks passed
+
+Exercise 6 — Host/User Access Control (pam_access)
+
+  [INFO] Resetting faillock and passwords for testuser/alice...
+BAD PASSWORD: The password contains the user name in some form
+  [INFO] Enabling pam_access for sshd...
+  [INFO] Configuring access.conf rules...
+  [PASS] testuser allowed from client (192.168.100.2)
+  [PASS] alice login returns correct username
+  [PASS] alice allowed from client (ALL:ALL rule)
+  [INFO] Restoring access.conf and sshd PAM...
+  [INFO] Resetting faillock and passwords for testuser/alice...
+BAD PASSWORD: The password contains the user name in some form
+
+  Exercise 6: All 3 checks passed
+
+Exercise 7 — Custom Audit (pam_exec)
+
+  [INFO] Creating pam-audit.sh and configuring pam_exec...
+  [INFO] Triggering login from client to generate audit entries...
+  [PASS] Audit log has open_session entry
+  [PASS] Audit log records USER=testuser
+  [PASS] Audit log records SERVICE=sshd
+  [PASS] Audit log has close_session entry
+  [INFO] Cleaning up pam_exec configuration...
+
+  Exercise 7: All 4 checks passed
+
+Exercise 9 — Centralized LDAP Authentication (sssd)
+
+  [INFO] Verifying LDAP server is reachable...
+  [PASS] LDAP server responds from server VM
+  [PASS] LDAP has ldapuser2
+  [INFO] Configuring sssd...
+Synchronizing state of sssd.service with SysV service script with /lib/systemd/systemd-sysv-install.
+Executing: /lib/systemd/systemd-sysv-install enable sssd
+  [PASS] getent resolves ldapuser1
+  [PASS] getent resolves ldapuser2
+  [PASS] getent resolves pamtesters group
+  [INFO] Testing SSH login with ldapuser1...
+  [PASS] ldapuser1 can SSH to server
+  [PASS] ldapuser2 can SSH to server
+  [PASS] Local user testuser still works with sssd active
+  [INFO] Cleaning up sssd configuration...
+
+  Exercise 9: All 8 checks passed
+
+=========================================
+  Final Report
+=========================================
+
+  Exercises run:     8
+  Exercises passed:  8
+  Exercises failed:  0
+  Exercises skipped: 0
+
+  All exercises passed!

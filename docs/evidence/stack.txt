@@ -1,0 +1,26 @@
+$ cat /etc/pam.d/sshd      (comments and blank lines removed)
+@include common-auth
+account    required     pam_nologin.so
+@include common-account
+session [success=ok ignore=ignore module_unknown=ignore default=bad]        pam_selinux.so close
+session    required     pam_loginuid.so
+session    optional     pam_keyinit.so force revoke
+@include common-session
+session    optional     pam_mail.so standard noenv # [1]
+session    required     pam_limits.so
+session    required     pam_env.so # [1]
+session    required     pam_env.so user_readenv=1 envfile=/etc/default/locale
+session [success=ok ignore=ignore module_unknown=ignore default=bad]        pam_selinux.so open
+@include common-password
+
+$ the file it @includes for authentication
+auth	[success=2 default=ignore]	pam_unix.so nullok
+auth	[success=1 default=ignore]	pam_sss.so use_first_pass
+auth	requisite			pam_deny.so
+auth	required			pam_permit.so
+auth	optional			pam_cap.so 
+
+$ and how many services on this machine have a PAM stack of their own
+chfn chpasswd chsh common-account common-auth common-password common-session 
+common-session-noninteractive login newusers other passwd polkit-1 runuser 
+runuser-l sshd sssd-shadowutils su su-l sudo sudo-i 

@@ -1,0 +1,20 @@
+$ the rules being added to /etc/security/pwquality.conf
+# == walkthrough ==
+minlen = 12
+minclass = 3
+maxrepeat = 3
+dcredit = -1
+ucredit = -1
+lcredit = -1
+ocredit = -1
+
+$ testuser changing his own password — three tries in one session
+Changing password for testuser.
+Current password: New password: BAD PASSWORD: The password contains less than 1 digits
+New password: BAD PASSWORD: The password contains less than 1 digits
+New password: Retype new password: passwd: password updated successfully
+
+$ and root setting the very same weak password on that account
+New password: BAD PASSWORD: The password contains less than 1 digits
+Retype new password: passwd: password updated successfully
+(rules removed, password restored)

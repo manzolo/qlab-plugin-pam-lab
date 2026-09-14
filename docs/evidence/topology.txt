@@ -1,0 +1,6 @@
+pam-lab-server       192.168.100.1/24
+pam-lab-client       192.168.100.2/24
+pam-lab-ldap         192.168.100.3/24
+
+testuser:1001:/bin/bash
+alice:1002:/bin/bash

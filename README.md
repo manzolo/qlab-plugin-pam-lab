@@ -49,6 +49,6 @@ LDAP users `ldapuser1` / `Ldap123!`, `ldapuser2` / `Ldap456!`. SSH forwarded —
 
 ## Learn more
 
-- 📖 **[Step-by-step guide](GUIDE.md)** — every module with full config examples
+- 📖 **[Step-by-step guide](guide.md)** — every module with full config examples
 - 📄 **Illustrated walkthrough** — a real run, captured live: **[English](docs/walkthrough-en.pdf)** · **[Italiano](docs/walkthrough-it.pdf)**
 - 🧩 **[QLab](https://github.com/manzolo/qlab)** — the plugin runner: how install, overlays and cloud-init work
